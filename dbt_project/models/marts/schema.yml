@@ -5,8 +5,16 @@ models:
     description: Daily completed-order revenue for the CEO dashboard.
     columns:
       - name: order_date
+        description: Order calendar date (grain of this mart).
         data_tests:
           - not_null
+          - unique          # grain guard: one row per day, catches join fan-out
+      - name: completed_order_rows
+        data_tests:
+          - not_null
+          - dbt_utils_free_positive_rows:  # see tests/generic/positive_rows.sql
+              config:
+                severity: error
       - name: daily_revenue
         data_tests:
           - not_null

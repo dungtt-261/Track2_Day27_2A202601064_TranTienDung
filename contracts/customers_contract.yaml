@@ -1,0 +1,36 @@
+dataset: customers
+owner: commerce-data
+description: SCD-style customer dimension joined by fct_daily_revenue.
+consumers: [stg_customers, fct_daily_revenue, ceo_revenue_dashboard]
+columns:
+  customer_id:
+    type: string
+    required: true
+    severity: critical
+    # NOT `unique`: the key repeats legitimately across historical versions.
+  country:
+    type: string
+    required: true
+    severity: warning
+  tier:
+    type: string
+    required: true
+    accepted_values: [basic, silver, gold]
+    severity: warning
+  is_active:
+    type: boolean
+    required: true
+    severity: critical
+  valid_from:
+    type: datetime
+    required: true
+    severity: warning
+
+# The rule that actually protects revenue: at most one *active* row per customer.
+# Two active rows fan out every order of that customer through the left join and
+# inflate revenue with no null, no duplicate order_id and no SQL error.
+unique_together:
+  - name: one_active_row_per_customer
+    columns: [customer_id]
+    where: "is_active == True"
+    severity: critical

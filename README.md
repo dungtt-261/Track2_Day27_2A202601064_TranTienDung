@@ -105,6 +105,16 @@ make reset
 
 ## 5. Những phần cần hoàn thiện
 
+> **Trạng thái:** đã hoàn thành. Xem `docs/SOLUTION.md` (giải pháp + runbook),
+> `reports/incident_report.md` (RCA), `reports/lab_answers.md` (đáp án các phase)
+> và `reports/agent_log.md` (nhật ký quyết định với AI agent).
+>
+> Môi trường: cần Python 3.10–3.13. Máy này chạy Python 3.14 nên dùng
+> `conda create -y -n lab27 python=3.13 && conda activate lab27`.
+>
+> OpenLineage chạy thật với Marquez: `make marquez-up && make lineage`
+> (API http://localhost:5000 · UI http://localhost:3000, cần Docker).
+
 Xem chi tiết trong `docs/LAB_GUIDE.md`.
 
 Các TODO quan trọng:

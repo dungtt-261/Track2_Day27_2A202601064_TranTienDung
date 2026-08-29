@@ -1,0 +1,67 @@
+# dbt native unit tests.
+#
+# Why these are NOT `not_null` / `unique` data tests:
+#   * a *data test* asks "is the data in the warehouse currently valid?" - it
+#     runs against whatever rows happen to be there and it will pass on an empty
+#     table or on a lucky day;
+#   * a *unit test* asks "is the SQL transformation logic correct?" - it feeds
+#     fixed input rows into the model and asserts the exact output, so it fails
+#     deterministically in CI before any bad data is ever produced.
+#
+# The revenue-inflation bug below is invisible to every data test in this
+# project: no null, no duplicate primary key, no negative amount, no SQL error.
+# Only a unit test that supplies a duplicated *active* customer row can expose it.
+
+unit_tests:
+  - name: completed_orders_sum_to_expected_revenue
+    description: Baseline logic - only completed orders count towards daily revenue.
+    model: fct_daily_revenue
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: 1, customer_id: C0001, amount_usd: 100.0, status: completed, order_date: '2026-08-01'}
+          - {order_id: 2, customer_id: C0001, amount_usd: 70.0, status: completed, order_date: '2026-08-01'}
+          - {order_id: 3, customer_id: C0002, amount_usd: 999.0, status: cancelled, order_date: '2026-08-01'}
+      - input: ref('stg_customers')
+        rows:
+          - {customer_id: C0001, is_active: true}
+          - {customer_id: C0002, is_active: true}
+    expect:
+      rows:
+        - {order_date: '2026-08-01', completed_order_rows: 2, daily_revenue: 170.0}
+
+  - name: revenue_not_inflated_by_duplicate_active_customer
+    description: >
+      Smallest possible test that exposes the fan-out bug. The customer dimension
+      contains TWO active rows for C0001 (a broken SCD close-out). The left join
+      then duplicates every order of that customer, doubling revenue - silently,
+      with no error and no failing data test. Expected output is the revenue of
+      the orders themselves, independent of how many dimension rows exist.
+    model: fct_daily_revenue
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: 1, customer_id: C0001, amount_usd: 100.0, status: completed, order_date: '2026-08-01'}
+      - input: ref('stg_customers')
+        rows:
+          - {customer_id: C0001, is_active: true, valid_from: '2025-01-01', valid_to: null}
+          - {customer_id: C0001, is_active: true, valid_from: '2026-06-01', valid_to: null}
+    expect:
+      rows:
+        - {order_date: '2026-08-01', completed_order_rows: 1, daily_revenue: 100.0}
+
+  - name: refunded_orders_excluded_from_revenue
+    description: Refunds and pending orders must never reach the CEO revenue tile.
+    model: fct_daily_revenue
+    given:
+      - input: ref('stg_orders')
+        rows:
+          - {order_id: 1, customer_id: C0001, amount_usd: 50.0, status: completed, order_date: '2026-08-02'}
+          - {order_id: 2, customer_id: C0001, amount_usd: 50.0, status: refunded, order_date: '2026-08-02'}
+          - {order_id: 3, customer_id: C0001, amount_usd: 50.0, status: pending, order_date: '2026-08-02'}
+      - input: ref('stg_customers')
+        rows:
+          - {customer_id: C0001, is_active: true}
+    expect:
+      rows:
+        - {order_date: '2026-08-02', completed_order_rows: 1, daily_revenue: 50.0}

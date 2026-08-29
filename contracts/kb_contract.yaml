@@ -1,13 +1,15 @@
 dataset: kb_documents
 owner: support-ai
+description: Knowledge-base documents indexed by the RAG support agent.
+consumers: [kb_active_docs, rag_index, support_agent]
 freshness:
   column: published_at
   max_delay_minutes: 60
-  severity: warning
+  severity: critical   # a stale KB makes the support agent answer with old policy
 fields:
-  doc_id: {required: true, type: string}
-  version: {required: true, type: integer}
-  effective_at: {required: true, type: datetime}
-  published_at: {required: true, type: datetime}
-  source_uri: {required: true, type: string}
-  content: {required: true, type: string, min_length: 20}
+  doc_id: {required: true, type: string, unique: true, severity: critical}
+  version: {required: true, type: integer, min: 1, severity: critical}
+  effective_at: {required: true, type: datetime, severity: warning}
+  published_at: {required: true, type: datetime, severity: critical}
+  source_uri: {required: true, type: string, severity: warning}
+  content: {required: true, type: string, min_length: 20, severity: critical}

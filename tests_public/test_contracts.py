@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import pandas as pd
 
@@ -7,7 +8,19 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "contracts" / "orders_contract.yaml"
 
 
+def _iso(minutes_ago: int) -> str:
+    """Timestamp `minutes_ago` minutes in the past, in UTC ISO-8601."""
+    return (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
 def healthy_df():
+    # NOTE(student): the original fixture hard-coded 2026-08-28 timestamps.
+    # The contract declares `freshness.max_delay_minutes: 30`, so any
+    # freshness-aware validator (required by Phase 1 of the lab) fails on a
+    # fixture that is permanently stale. Timestamps are now relative to `now`
+    # so the fixture really is "healthy data" on any run date.
     return pd.DataFrame([
         {
             "order_id": 1,
@@ -15,8 +28,8 @@ def healthy_df():
             "amount": 10.0,
             "currency": "USD",
             "status": "completed",
-            "created_at": "2026-08-28T10:00:00Z",
-            "updated_at": "2026-08-28T10:05:00Z",
+            "created_at": _iso(10),
+            "updated_at": _iso(5),
         },
         {
             "order_id": 2,
@@ -24,8 +37,8 @@ def healthy_df():
             "amount": 20.0,
             "currency": "USD",
             "status": "pending",
-            "created_at": "2026-08-28T10:01:00Z",
-            "updated_at": "2026-08-28T10:06:00Z",
+            "created_at": _iso(9),
+            "updated_at": _iso(4),
         },
     ])
 
